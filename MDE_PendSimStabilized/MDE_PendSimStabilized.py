@@ -42,12 +42,15 @@ def pendulum_length(t):
 
 # Parameters
 pendulum_mass = 0.1  # Mass remains constant
-initial_conditions = [np.pi / 6, 0]  # Initial angle (30 degrees) and angular velocity (0 by default)
-simulation_time = (0, 10)  # Start and end time
-length_change_rate = 0.01  # Rate of change of pendulum length (meters per second)
+epsilon = np.deg2rad(2.8)  # Convert 2.8 degrees to radians
+alpha = np.deg2rad(4.47)  # Convert 4.47 deg/s to radians/s
+initial_conditions = [np.pi / 6, 0]  # Initial angle and angular velocity
+simulation_time = (0, 29)  # Start and end time
 
 # Simulation loop
-length = 1.0  # Initial pendulum length (meters)
+length = (30.0 * 0.3048)  # Initial pendulum length converted to meters
+total_time = simulation_time[1] - simulation_time[0]  # Total simulation time
+
 while True:
     # Simulate the pendulum with the dynamic length function
     solution = simulate_pendulum(pendulum_length, pendulum_mass, initial_conditions=initial_conditions, t_span=simulation_time)
@@ -57,6 +60,7 @@ while True:
     theta_data = []
     omega_data = []
     alpha_data = []
+    length_data = []  # Store length values
 
     # Initialize variables to track the current time and length
     current_time = simulation_time[0]
@@ -75,12 +79,21 @@ while True:
         theta_data.append(theta)
         omega_data.append(omega)
         alpha_data.append(alpha)
+        length_data.append(current_length)  # Store length values
 
         # Check conditions and modify length in real-time
-        if theta < -0.1 and omega >= -0.1:
-            current_length -= length_change_rate  # Shorten the pendulum
-        elif theta > 0.1 and omega <= 0.1:
-            current_length += length_change_rate  # Lengthen the pendulum
+        if current_length > 0:  # Ensure length is positive
+            if np.isclose(theta, epsilon) and omega < -alpha:
+                current_length += (0.87 * 0.3048) * (total_time / 1000)  # Increase length by 0.87 ft/s
+            elif theta < -epsilon and omega >= -alpha:
+                current_length -= (2.79 * 0.3048) * (total_time / 1000)  # Decrease length by 2.79 ft/s
+            elif np.isclose(theta, -epsilon) and omega > alpha:
+                current_length += (0.87 * 0.3048) * (total_time / 1000)  # Increase length by 0.87 ft/s
+            elif theta > epsilon and omega <= alpha:
+                current_length -= (2.79 * 0.3048) * (total_time / 1000)  # Decrease length by 2.79 ft/s
+        else:
+            print("Pendulum length reached 0. Simulation ended.")
+            break
 
         # Update the length function for the next time step
         def pendulum_length(t):
@@ -91,45 +104,45 @@ while True:
 
         # Plot real-time data
         plt.clf()
+
+        # Plot Angle
         plt.subplot(411)
         plt.plot(t_data, theta_data)
         plt.xlabel('Time')
         plt.ylabel('Angle (radians)')
         plt.title('Pendulum Angle')
+        plt.grid(True)
 
+        # Plot Angular Velocity
         plt.subplot(412)
         plt.plot(t_data, omega_data)
         plt.xlabel('Time')
         plt.ylabel('Angular Velocity (rad/s)')
         plt.title('Angular Velocity')
+        plt.grid(True)
 
+        # Plot Angular Acceleration
         plt.subplot(413)
         plt.plot(t_data, alpha_data)
         plt.xlabel('Time')
         plt.ylabel('Angular Acceleration (rad/s^2)')
         plt.title('Angular Acceleration')
+        plt.grid(True)
 
+        # Plot Length (as a scatter plot)
         plt.subplot(414)
-        plt.plot(t_data, [pendulum_length(t_) for t_ in t_data])
+        plt.scatter(t_data, length_data, s=10, c='r')  # Scatter plot for length with larger and red dots
         plt.xlabel('Time')
         plt.ylabel('Length')
         plt.title('Pendulum Length')
+        plt.grid(True)
 
         plt.tight_layout()
         plt.pause(0.01)  # Pause for a short time to update the plot
 
     plt.ioff()  # Turn off interactive mode after the simulation
 
- 
-
-
-   # Theoretically (has yet to be tested) will allow us to modify the below mid simulation and continue the graph going
-    #user_input = input("Enter 'q' to quit or 'c' to change parameters: ")
-    #if user_input == 'q':
-    #    break
-    #elif user_input == 'c':
-    #    pendulum_length = float(input("Enter new pendulum length: "))
-    #    pendulum_mass = float(input("Enter new pendulum mass: "))
-    #    air_resistance = bool(int(input("Enter 0 for no air resistance, 1 for air resistance: ")))
-    #    initial_conditions[0] = float(input("Enter new initial angle (in radians): "))
-
+    # Ask the user for input to continue or quit the simulation
+    user_input = input("Enter 'q' to quit or any other key to continue: ")
+    if user_input == 'q':
+        break
