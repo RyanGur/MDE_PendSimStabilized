@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 
+SAMPLE_RATE = 1000
+
 class Pendulum:
     def __init__(self, length_func, mass, air_resistance=False):
         self.length_func = length_func
@@ -31,7 +33,7 @@ def simulate_pendulum(length_func, mass, air_resistance=False, initial_condition
         fun=pendulum.equations_of_motion,
         t_span=t_span,
         y0=initial_conditions,
-        t_eval=np.linspace(t_span[0], t_span[1], 1000)
+        t_eval=np.linspace(t_span[0], t_span[1], SAMPLE_RATE)
     )
     return solution
 
@@ -84,13 +86,13 @@ while True:
         # Check conditions and modify length in real-time
         if current_length > 0:  # Ensure length is positive
             if np.isclose(theta, epsilon) and omega < -alpha:
-                current_length += (0.87 * 0.3048) * (total_time / 1000)  # Increase length by 0.87 ft/s
+                current_length += (0.87 * 0.3048) * (total_time / SAMPLE_RATE)  # Increase length by 0.87 ft/s
             elif theta < -epsilon and omega >= -alpha:
-                current_length -= (2.79 * 0.3048) * (total_time / 1000)  # Decrease length by 2.79 ft/s
+                current_length -= (2.79 * 0.3048) * (total_time / SAMPLE_RATE)  # Decrease length by 2.79 ft/s
             elif np.isclose(theta, -epsilon) and omega > alpha:
-                current_length += (0.87 * 0.3048) * (total_time / 1000)  # Increase length by 0.87 ft/s
+                current_length += (0.87 * 0.3048) * (total_time / SAMPLE_RATE)  # Increase length by 0.87 ft/s
             elif theta > epsilon and omega <= alpha:
-                current_length -= (2.79 * 0.3048) * (total_time / 1000)  # Decrease length by 2.79 ft/s
+                current_length -= (2.79 * 0.3048) * (total_time / SAMPLE_RATE)  # Decrease length by 2.79 ft/s
         else:
             print("Pendulum length reached 0. Simulation ended.")
             break
