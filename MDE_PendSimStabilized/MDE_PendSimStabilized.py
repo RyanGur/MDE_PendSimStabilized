@@ -46,11 +46,11 @@ def pendulum_length(t):
 pendulum_mass = 0.1  # Mass remains constant
 epsilon = np.deg2rad(2.8)  # Convert 2.8 degrees to radians
 alpha = np.deg2rad(4.47)  # Convert 4.47 deg/s to radians/s
-initial_conditions = [np.pi / 6, 0]  # Initial angle and angular velocity
+initial_conditions = [np.pi / 12, 0]  # Initial angle and angular velocity
 simulation_time = (0, 29)  # Start and end time
 
 # Simulation loop
-length = (30.0 * 0.3048)  # Initial pendulum length converted to meters
+length = (105 * 0.3048)  # Initial pendulum length converted to meters
 total_time = simulation_time[1] - simulation_time[0]  # Total simulation time
 
 while True:
@@ -86,13 +86,17 @@ while True:
         # Check conditions and modify length in real-time
         if current_length > 0:  # Ensure length is positive
             if np.isclose(theta, epsilon) and omega < -alpha:
-                current_length += (0.87 * 0.3048) * (total_time / SAMPLE_RATE)  # Increase length by 0.87 ft/s
+                #current_length += (0.87 * 0.3048) * (total_time / SAMPLE_RATE)  # Increase length by 0.87 ft/s
+                current_length += 0.29 * (total_time / SAMPLE_RATE)
             elif theta < -epsilon and omega >= -alpha:
-                current_length -= (2.79 * 0.3048) * (total_time / SAMPLE_RATE)  # Decrease length by 2.79 ft/s
+                #current_length -= (2.79 * 0.3048) * (total_time / SAMPLE_RATE)  # Decrease length by 2.79 ft/s
+                current_length -= 0.93 * (total_time / SAMPLE_RATE)
             elif np.isclose(theta, -epsilon) and omega > alpha:
-                current_length += (0.87 * 0.3048) * (total_time / SAMPLE_RATE)  # Increase length by 0.87 ft/s
+                #current_length += (0.87 * 0.3048) * (total_time / SAMPLE_RATE)  # Increase length by 0.87 ft/s
+                current_length += 0.29 * (total_time / SAMPLE_RATE)
             elif theta > epsilon and omega <= alpha:
-                current_length -= (2.79 * 0.3048) * (total_time / SAMPLE_RATE)  # Decrease length by 2.79 ft/s
+                #current_length -= (2.79 * 0.3048) * (total_time / SAMPLE_RATE)  # Decrease length by 2.79 ft/s
+                current_length -= 0.93 * (total_time / SAMPLE_RATE)
         else:
             print("Pendulum length reached 0. Simulation ended.")
             break
