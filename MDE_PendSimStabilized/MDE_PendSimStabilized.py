@@ -11,21 +11,22 @@ class Pendulum:
         self.air_resistance = air_resistance
 
     def equations_of_motion(self, t, state):
-        theta, omega = state
+        theta, theta_dot = state
         g = 9.81  # acceleration due to gravity
 
         if self.air_resistance:
             k = 0.1  # air resistance coefficient
-            alpha = -k * omega
+            alpha = -k * theta_dot
         else:
             alpha = 0
 
         # Evaluate the length function at the current time
         length = self.length_func(t)
 
-        # Update the length-dependent term in the equation
-        theta_double_dot = (-g / length) * np.sin(theta) - (alpha / (self.mass * length**2))
-        return [omega, theta_double_dot]
+        # Calculate the second derivative of theta (theta_double_dot)
+        theta_double_dot = (-g / length) * np.sin(theta) + (alpha / (self.mass * length**2))
+
+        return [theta_dot, theta_double_dot]
 
 def simulate_pendulum(length_func, mass, air_resistance=False, initial_conditions=[np.pi / 4, 0], t_span=(0, 10)):
     pendulum = Pendulum(length_func, mass, air_resistance)
@@ -44,9 +45,10 @@ def pendulum_length(t):
 
 # Parameters
 pendulum_mass = 0.1  # Mass remains constant
-epsilon = np.deg2rad(2.8)  # Convert 2.8 degrees to radians
+epsilon1 = np.deg2rad(5.6)  # Convert 2.8 degrees to radians  -- increase length
+epsilon2 = np.deg2rad(2.8)  # Convert 2.8 degrees to radians -- decrease length
 alpha = np.deg2rad(4.47)  # Convert 4.47 deg/s to radians/s
-initial_conditions = [np.pi / 6, 0]  # Initial angle and angular velocity
+initial_conditions = [np.pi / 12, 0]  # Initial angle and angular velocity
 simulation_time = (0, 29)  # Start and end time
 
 # Simulation loop
@@ -85,13 +87,13 @@ while True:
 
         # Check conditions and modify length in real-time
         if current_length > 0:  # Ensure length is positive
-            if np.isclose(theta, epsilon) and omega < -alpha:
+            if theta < epsilon1 and omega < -alpha:
                 current_length += (0.87 * 0.3048) * (total_time / SAMPLE_RATE)  # Increase length by 0.87 ft/s
-            elif theta < -epsilon and omega >= -alpha:
+            elif theta < -epsilon2 and omega >= -alpha:
                 current_length -= (2.79 * 0.3048) * (total_time / SAMPLE_RATE)  # Decrease length by 2.79 ft/s
-            elif np.isclose(theta, -epsilon) and omega > alpha:
+            elif theta > -epsilon1 and omega > alpha:
                 current_length += (0.87 * 0.3048) * (total_time / SAMPLE_RATE)  # Increase length by 0.87 ft/s
-            elif theta > epsilon and omega <= alpha:
+            elif theta > epsilon2 and omega <= alpha:
                 current_length -= (2.79 * 0.3048) * (total_time / SAMPLE_RATE)  # Decrease length by 2.79 ft/s
         else:
             print("Pendulum length reached 0. Simulation ended.")
