@@ -1,0 +1,1 @@
+Best Parameters: epsilon1 = 0.008726646259971648, epsilon2 = 0.06283185307179585, alpha = 0.09773843811168245, increase_length = 0.265176, decrease_length = 0.850392

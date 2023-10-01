@@ -1,6 +1,6 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
+import itertools
 
 SAMPLE_RATE = 1000
 
@@ -45,58 +45,52 @@ def pendulum_length(t):
 
 # Parameters
 pendulum_mass = 0.1  # Mass remains constant
-epsilon1 = np.deg2rad(5.6)  # Convert 2.8 degrees to radians  -- increase length
-epsilon2 = np.deg2rad(2.8)  # Convert 2.8 degrees to radians -- decrease length
-alpha = np.deg2rad(4.47)  # Convert 4.47 deg/s to radians/s
 initial_conditions = [np.pi / 12, 0]  # Initial angle and angular velocity
 simulation_time = (0, 29)  # Start and end time
-
-# Simulation loop
-length = (30.0 * 0.3048)  # Initial pendulum length converted to meters
 total_time = simulation_time[1] - simulation_time[0]  # Total simulation time
 
-while True:
+# Define parameter search ranges
+epsilon1_range = np.deg2rad(np.arange(0.5, 5.0, 0.1))  # Epsilon1 range from 0.5 to 5.0 degrees
+epsilon2_range = np.deg2rad(np.arange(0.5, 5.0, 0.1))  # Epsilon2 range from 0.5 to 5.0 degrees
+alpha_range = np.deg2rad(np.arange(0.1, 10.0, 0.1))  # Alpha range from 0.1 to 10.0 degrees/s
+increase_length_range = [0.87 * 0.3048]  # A single value for increase_length
+decrease_length_range = [2.79 * 0.3048]  # A single value for decrease_length
+
+best_params = None
+best_score = float('inf')
+
+# Brute-force parameter search
+for epsilon1, epsilon2, alpha, increase_length, decrease_length in itertools.product(
+    epsilon1_range, epsilon2_range, alpha_range, increase_length_range, decrease_length_range
+):
+    # Simulation loop
+    length = (30.0 * 0.3048)  # Initial pendulum length converted to meters
+
     # Simulate the pendulum with the dynamic length function
     solution = simulate_pendulum(pendulum_length, pendulum_mass, initial_conditions=initial_conditions, t_span=simulation_time)
-
-    # Prepare arrays to store real-time data for plotting
-    t_data = []
-    theta_data = []
-    omega_data = []
-    alpha_data = []
-    length_data = []  # Store length values
 
     # Initialize variables to track the current time and length
     current_time = simulation_time[0]
     current_length = length
+    success = True
 
-    # Plot the results with real-time updates
-    plt.figure(figsize=(12, 8))
-    plt.ion()  # Turn on interactive mode for real-time plotting
-
+    # Check conditions and modify length in real-time
     for t_, state in zip(solution.t, solution.y.T):
-        t_data.append(t_)
         theta, omega = state
-        alpha = (-9.81 / current_length) * np.sin(theta)  # Calculate angular acceleration in real-time
+        alpha_real_time = (-9.81 / current_length) * np.sin(theta)  # Calculate angular acceleration in real-time
 
-        # Store data for real-time plotting
-        theta_data.append(theta)
-        omega_data.append(omega)
-        alpha_data.append(alpha)
-        length_data.append(current_length)  # Store length values
-
-        # Check conditions and modify length in real-time
         if current_length > 0:  # Ensure length is positive
             if theta < epsilon1 and omega < -alpha:
-                current_length += (0.87 * 0.3048) * (total_time / SAMPLE_RATE)  # Increase length by 0.87 ft/s
+                current_length += increase_length * (total_time / SAMPLE_RATE)  # Increase length
             elif theta < -epsilon2 and omega >= -alpha:
-                current_length -= (2.79 * 0.3048) * (total_time / SAMPLE_RATE)  # Decrease length by 2.79 ft/s
+                current_length -= decrease_length * (total_time / SAMPLE_RATE)  # Decrease length
             elif theta > -epsilon1 and omega > alpha:
-                current_length += (0.87 * 0.3048) * (total_time / SAMPLE_RATE)  # Increase length by 0.87 ft/s
+                current_length += increase_length * (total_time / SAMPLE_RATE)  # Increase length
             elif theta > epsilon2 and omega <= alpha:
-                current_length -= (2.79 * 0.3048) * (total_time / SAMPLE_RATE)  # Decrease length by 2.79 ft/s
+                current_length -= decrease_length * (total_time / SAMPLE_RATE)  # Decrease length
         else:
             print("Pendulum length reached 0. Simulation ended.")
+            success = False
             break
 
         # Update the length function for the next time step
@@ -106,47 +100,23 @@ while True:
         # Update the time for the next time step
         current_time = t_
 
-        # Plot real-time data
-        plt.clf()
+    # Evaluate the score based on the final state
+    if success:
+        final_theta = solution.y[0, -1]
+        final_length = current_length
+        score = abs(final_theta) + abs(final_length - 1.0)  # Penalize deviation from desired angle and length
 
-        # Plot Angle
-        plt.subplot(411)
-        plt.plot(t_data, theta_data)
-        plt.xlabel('Time')
-        plt.ylabel('Angle (radians)')
-        plt.title('Pendulum Angle')
-        plt.grid(True)
+        # Check if this parameter set is better than the previous best
+        if score < best_score:
+            best_score = score
+            best_params = (epsilon1, epsilon2, alpha, increase_length, decrease_length)
 
-        # Plot Angular Velocity
-        plt.subplot(412)
-        plt.plot(t_data, omega_data)
-        plt.xlabel('Time')
-        plt.ylabel('Angular Velocity (rad/s)')
-        plt.title('Angular Velocity')
-        plt.grid(True)
-
-        # Plot Angular Acceleration
-        plt.subplot(413)
-        plt.plot(t_data, alpha_data)
-        plt.xlabel('Time')
-        plt.ylabel('Angular Acceleration (rad/s^2)')
-        plt.title('Angular Acceleration')
-        plt.grid(True)
-
-        # Plot Length (as a scatter plot)
-        plt.subplot(414)
-        plt.scatter(t_data, length_data, s=10, c='r')  # Scatter plot for length with larger and red dots
-        plt.xlabel('Time')
-        plt.ylabel('Length')
-        plt.title('Pendulum Length')
-        plt.grid(True)
-
-        plt.tight_layout()
-        plt.pause(0.01)  # Pause for a short time to update the plot
-
-    plt.ioff()  # Turn off interactive mode after the simulation
-
-    # Ask the user for input to continue or quit the simulation
-    user_input = input("Enter 'q' to quit or any other key to continue: ")
-    if user_input == 'q':
-        break
+# Save the best parameters to a text file
+if best_params is not None:
+    with open("best_parameters.txt", "w") as file:
+        file.write(f"Best Parameters: epsilon1 = {best_params[0]}, epsilon2 = {best_params[1]}, alpha = {best_params[2]}, "
+                   f"increase_length = {best_params[3]}, decrease_length = {best_params[4]}")
+        print(f"Best Parameters: epsilon1 = {best_params[0]}, epsilon2 = {best_params[1]}, alpha = {best_params[2]}, "
+              f"increase_length = {best_params[3]}, decrease_length = {best_params[4]}")
+else:
+    print("No suitable parameters found.")
