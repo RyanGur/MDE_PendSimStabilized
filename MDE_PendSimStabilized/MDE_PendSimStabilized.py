@@ -57,7 +57,7 @@ increase_length_range = [0.87 * 0.3048]  # A single value for increase_length
 decrease_length_range = [2.79 * 0.3048]  # A single value for decrease_length
 
 best_params = None
-best_score = float('inf')
+best_peak_diff = 0.0  # Initialize best peak difference
 
 # Brute-force parameter search
 for epsilon1, epsilon2, alpha, increase_length, decrease_length in itertools.product(
@@ -69,15 +69,22 @@ for epsilon1, epsilon2, alpha, increase_length, decrease_length in itertools.pro
     # Simulate the pendulum with the dynamic length function
     solution = simulate_pendulum(pendulum_length, pendulum_mass, initial_conditions=initial_conditions, t_span=simulation_time)
 
-    # Initialize variables to track the current time and length
-    current_time = simulation_time[0]
+    # Initialize variables to track the angle peaks and length change
+    max_angle1 = None
+    min_angle1 = None
+    max_angle2 = None
+    min_angle2 = None
     current_length = length
     success = True
 
     # Check conditions and modify length in real-time
     for t_, state in zip(solution.t, solution.y.T):
         theta, omega = state
-        alpha_real_time = (-9.81 / current_length) * np.sin(theta)  # Calculate angular acceleration in real-time
+
+        if max_angle1 is None or theta > max_angle1:
+            max_angle1 = theta
+        if min_angle1 is None or theta < min_angle1:
+            min_angle1 = theta
 
         if current_length > 0:  # Ensure length is positive
             if theta < epsilon1 and omega < -alpha:
@@ -88,6 +95,8 @@ for epsilon1, epsilon2, alpha, increase_length, decrease_length in itertools.pro
                 current_length += increase_length * (total_time / SAMPLE_RATE)  # Increase length
             elif theta > epsilon2 and omega <= alpha:
                 current_length -= decrease_length * (total_time / SAMPLE_RATE)  # Decrease length
+            else:
+                current_length -= decrease_length * (total_time / SAMPLE_RATE)  # Default: Decrease length
         else:
             print("Pendulum length reached 0. Simulation ended.")
             success = False
@@ -100,16 +109,15 @@ for epsilon1, epsilon2, alpha, increase_length, decrease_length in itertools.pro
         # Update the time for the next time step
         current_time = t_
 
-    # Evaluate the score based on the final state
+    # Calculate the difference between the absolute values of the first and second peaks
     if success:
-        final_theta = solution.y[0, -1]
-        final_length = current_length
-        score = abs(final_theta) + abs(final_length - 1.0)  # Penalize deviation from desired angle and length
+        if max_angle1 is not None and max_angle2 is not None:
+            peak_diff = abs(max_angle1) - abs(max_angle2)
 
-        # Check if this parameter set is better than the previous best
-        if score < best_score:
-            best_score = score
-            best_params = (epsilon1, epsilon2, alpha, increase_length, decrease_length)
+            # Check if this parameter set is better than the previous best
+            if peak_diff > best_peak_diff:
+                best_peak_diff = peak_diff
+                best_params = (epsilon1, epsilon2, alpha, increase_length, decrease_length)
 
 # Save the best parameters to a text file
 if best_params is not None:
