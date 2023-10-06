@@ -1,5 +1,8 @@
 import numpy as np
 from scipy.integrate import solve_ivp
+from skopt import BayesSearchCV
+from skopt.space import Real, Integer
+from skopt.utils import use_named_args
 import itertools
 
 SAMPLE_RATE = 1000
@@ -46,23 +49,36 @@ def pendulum_length(t):
 # Parameters
 pendulum_mass = 0.1  # Mass remains constant
 initial_conditions = [np.pi / 12, 0]  # Initial angle and angular velocity
-simulation_time = (0, 10)  # Start and end time
+simulation_time = (0, 29)  # Start and end time
 total_time = simulation_time[1] - simulation_time[0]  # Total simulation time
 
-# Define parameter search ranges
-epsilon1_range = np.deg2rad(np.arange(0.5, 5.0, 0.1))  # Epsilon1 range from 0.5 to 5.0 degrees
-epsilon2_range = np.deg2rad(np.arange(0.5, 5.0, 0.1))  # Epsilon2 range from 0.5 to 5.0 degrees
-alpha_range = np.deg2rad(np.arange(0.5, 10.0, 0.1))  # Alpha range from 0.1 to 10.0 degrees/s
-increase_length_range = np.arange(0.1, 2.0, 0.1)  # Increase_length range from 0.1 to 2.0
-decrease_length_range = np.arange(0.1, 2.0, 0.1)  # Decrease_length range from 0.1 to 2.0
+# Define parameter search space
+param_space = {
+    'epsilon1': Real(0.5, 5.0),
+    'epsilon2': Real(0.5, 5.0),
+    'alpha': Real(0.1, 10.0),
+    'increase_length': Real(0.1, 2.0),
+    'decrease_length': Real(0.1, 2.0)
+}
 
-best_params = None
-best_peak_diff = 0.0  # Initialize best peak difference
+# Initialize Bayesian optimization
+opt = BayesSearchCV(
+    simulate_pendulum,
+    param_space,
+    n_iter=50,  # Number of optimization steps
+    random_state=0,
+    n_jobs=-1  # Use all available CPU cores
+)
 
-# Brute-force parameter search
-for epsilon1, epsilon2, alpha, increase_length, decrease_length in itertools.product(
-    epsilon1_range, epsilon2_range, alpha_range, increase_length_range, decrease_length_range
-):
+@use_named_args(param_space)
+def objective(**params):
+    print("Trying parameters:", params)
+    epsilon1 = params['epsilon1']
+    epsilon2 = params['epsilon2']
+    alpha = params['alpha']
+    increase_length = params['increase_length']
+    decrease_length = params['decrease_length']
+
     # Simulation loop
     length = (30.0 * 0.3048)  # Initial pendulum length converted to meters
 
@@ -113,18 +129,25 @@ for epsilon1, epsilon2, alpha, increase_length, decrease_length in itertools.pro
     if success:
         if max_angle1 is not None and max_angle2 is not None:
             peak_diff = abs(max_angle1) - abs(max_angle2)
+            return -peak_diff  # We want to maximize the peak difference (negative because it's a minimization problem)
 
-            # Check if this parameter set is better than the previous best
-            if peak_diff > best_peak_diff:
-                best_peak_diff = peak_diff
-                best_params = (epsilon1, epsilon2, alpha, increase_length, decrease_length)
+    return np.inf  # Return a large value for unsuccessful simulations
+
+# Perform Bayesian optimization
+opt.fit(np.zeros((1, len(param_space))), np.zeros(1))  # Initialize the optimizer
+
+# Find the best parameters
+best_params = opt.best_params_
+best_peak_diff = -opt.best_value_  # Convert back to positive since we maximized the negative peak difference
 
 # Save the best parameters to a text file
 if best_params is not None:
     with open("best_parameters.txt", "w") as file:
-        file.write(f"Best Parameters: epsilon1 = {best_params[0]}, epsilon2 = {best_params[1]}, alpha = {best_params[2]}, "
-                   f"increase_length = {best_params[3]}, decrease_length = {best_params[4]}")
-        print(f"Best Parameters: epsilon1 = {best_params[0]}, epsilon2 = {best_params[1]}, alpha = {best_params[2]}, "
-              f"increase_length = {best_params[3]}, decrease_length = {best_params[4]}")
+        file.write(f"Best Parameters: epsilon1 = {best_params['epsilon1']}, epsilon2 = {best_params['epsilon2']}, "
+                   f"alpha = {best_params['alpha']}, increase_length = {best_params['increase_length']}, "
+                   f"decrease_length = {best_params['decrease_length']}, Best Peak Difference = {best_peak_diff}")
+        print(f"Best Parameters: epsilon1 = {best_params['epsilon1']}, epsilon2 = {best_params['epsilon2']}, "
+              f"alpha = {best_params['alpha']}, increase_length = {best_params['increase_length']}, "
+              f"decrease_length = {best_params['decrease_length']}, Best Peak Difference = {best_peak_diff}")
 else:
     print("No suitable parameters found.")
