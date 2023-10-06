@@ -46,15 +46,15 @@ def pendulum_length(t):
 # Parameters
 pendulum_mass = 0.1  # Mass remains constant
 initial_conditions = [np.pi / 12, 0]  # Initial angle and angular velocity
-simulation_time = (0, 29)  # Start and end time
+simulation_time = (0, 10)  # Start and end time
 total_time = simulation_time[1] - simulation_time[0]  # Total simulation time
 
 # Define parameter search ranges
 epsilon1_range = np.deg2rad(np.arange(0.5, 5.0, 0.1))  # Epsilon1 range from 0.5 to 5.0 degrees
 epsilon2_range = np.deg2rad(np.arange(0.5, 5.0, 0.1))  # Epsilon2 range from 0.5 to 5.0 degrees
-alpha_range = np.deg2rad(np.arange(0.1, 10.0, 0.1))  # Alpha range from 0.1 to 10.0 degrees/s
-increase_length_range = [0.87 * 0.3048]  # A single value for increase_length
-decrease_length_range = [2.79 * 0.3048]  # A single value for decrease_length
+alpha_range = np.deg2rad(np.arange(0.5, 10.0, 0.1))  # Alpha range from 0.1 to 10.0 degrees/s
+increase_length_range = np.arange(0.1, 2.0, 0.1)  # Increase_length range from 0.1 to 2.0
+decrease_length_range = np.arange(0.1, 2.0, 0.1)  # Decrease_length range from 0.1 to 2.0
 
 best_params = None
 best_peak_diff = 0.0  # Initialize best peak difference
@@ -86,7 +86,7 @@ for epsilon1, epsilon2, alpha, increase_length, decrease_length in itertools.pro
         if min_angle1 is None or theta < min_angle1:
             min_angle1 = theta
 
-        if current_length > 0:  # Ensure length is positive
+        if current_length > 0 and current_length >= length:  # Ensure length is positive and not increasing
             if theta < epsilon1 and omega < -alpha:
                 current_length += increase_length * (total_time / SAMPLE_RATE)  # Increase length
             elif theta < -epsilon2 and omega >= -alpha:
@@ -98,7 +98,7 @@ for epsilon1, epsilon2, alpha, increase_length, decrease_length in itertools.pro
             else:
                 current_length -= decrease_length * (total_time / SAMPLE_RATE)  # Default: Decrease length
         else:
-            print("Pendulum length reached 0. Simulation ended.")
+            print("Pendulum length reached 0 or increased. Simulation ended.")
             success = False
             break
 
