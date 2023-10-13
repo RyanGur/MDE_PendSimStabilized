@@ -52,14 +52,14 @@ initial_conditions = [np.pi / 12, 0]  # Initial angle and angular velocity
 simulation_time = (0, 29)  # Start and end time
 total_time = simulation_time[1] - simulation_time[0]  # Total simulation time
 
-# Define parameter search space
-param_space = {
-    'epsilon1': Real(0.5, 5.0),
-    'epsilon2': Real(0.5, 5.0),
-    'alpha': Real(0.1, 10.0),
-    'increase_length': Real(0.1, 2.0),
-    'decrease_length': Real(0.1, 2.0)
-}
+# Define parameter search space using skopt's Real and Integer dimensions
+param_space = [
+    Real(0.5, 5.0, name='epsilon1'),
+    Real(0.5, 5.0, name='epsilon2'),
+    Real(0.1, 10.0, name='alpha'),
+    Real(0.1, 2.0, name='increase_length'),
+    Real(0.1, 2.0, name='decrease_length')
+]
 
 # Initialize Bayesian optimization
 opt = BayesSearchCV(
@@ -134,7 +134,7 @@ def objective(**params):
     return np.inf  # Return a large value for unsuccessful simulations
 
 # Perform Bayesian optimization
-opt.fit(np.zeros((1, len(param_space))), np.zeros(1))  # Initialize the optimizer
+opt.fit([0], [0])  # Initialize the optimizer
 
 # Find the best parameters
 best_params = opt.best_params_
